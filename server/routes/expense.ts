@@ -3,7 +3,6 @@ import Expense from "../models/Expense";
 import Group from "../models/Group";
 import ApprovalRequest from "../models/ApprovalRequest";
 import { requireAuth, AuthRequest } from "../middleware/auth";
-import mongoose from "mongoose";
 
 const router = express.Router();
 

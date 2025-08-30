@@ -5,6 +5,7 @@ import cors from "cors";
 
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/user";
+import expenseRoutes from "./routes/expense";
 
 dotenv.config();
 
@@ -27,3 +28,4 @@ mongoose.connect(MONGO_URI)
 app.get("/healthz", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/expenses", expenseRoutes);
