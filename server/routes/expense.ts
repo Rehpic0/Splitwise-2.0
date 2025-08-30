@@ -3,6 +3,7 @@ import Expense from "../models/Expense";
 import Group from "../models/Group";
 import ApprovalRequest from "../models/ApprovalRequest";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -39,6 +40,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
    * Only the involved[] need to approve (except creator/payer).
    */
   const { group, description, amount, payer, involved, split } = req.body;
+  console.log('✅', JSON.stringify({ payer, amount, split }, null, 2));
   if (!involved.includes(payer))
     return res.status(400).json({ error: "Payer must be in involved" });
 
@@ -72,7 +74,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
 // Approve/Reject an expense creation request
 router.post("/approve/:requestId", requireAuth, async (req: AuthRequest, res) => {
   const { requestId } = req.params;
-  const { accept } = req.body; // accept: true/false
+  const { accept } = req.body;
 
   const request = await ApprovalRequest.findById(requestId);
   if (!request) return res.status(404).json({ error: "Not found" });
@@ -99,7 +101,14 @@ router.post("/approve/:requestId", requireAuth, async (req: AuthRequest, res) =>
   } else {
     request.rejected = true;
     await request.save();
-    return res.json({ success: true, message: "Rejected" });
+
+    const expense = await Expense.findById(request.expense);
+    if (expense) expense.rejected = true;
+    await expense?.save();
+    // if (expense) await expense.deleteOne();
+    await request.deleteOne();
+
+    return res.json({ success: true, message: "Rejected expense" });
   }
 });
 
@@ -132,7 +141,7 @@ router.post("/:expenseId/settle", requireAuth, async (req: AuthRequest, res) => 
   const expense = await Expense.findById(expenseId);
   if (!expense) return res.status(404).json({ error: "Expense not found" });
 
-  if (!expense.involved.map(id=>id.toString()).includes(sender))
+  if (!expense.involved.map(id => id.toString()).includes(sender))
     return res.status(403).json({ error: "You are not involved in this expense" });
 
   // Simple check: sender != receiver
@@ -162,31 +171,40 @@ router.post("/settle/approve/:requestId", requireAuth, async (req: AuthRequest, 
    */
   const { requestId } = req.params;
   const { accept } = req.body;
-  const userId = req.userId!;
+  const userId = new mongoose.Types.ObjectId(req.userId!);
 
   // Get request; it must be a SETTLE, and user must be receiver
   const request = await ApprovalRequest.findById(requestId);
   if (!request || request.type !== "SETTLE")
     return res.status(404).json({ error: "Settle request not found" });
 
-  if (!request.receivers.map(id=>id.toString()).includes(userId))
+  if (!request.receivers.map(id => id.toString()).includes(userId.toString()))
     return res.status(403).json({ error: "Not authorized" });
 
   if (request.approvedBy.includes(userId as any))
     return res.status(400).json({ error: "Already responded" });
 
   if (accept) {
-    // Mark settlement as accepted
     request.approvedBy.push(userId as any);
-
-    // Here you can update the expense: mark some or all of the amount as settled
-    // For simplicity, not tracking partial settlements on Expense yet
-    // -- Consider updating Expense: add a settled[] array, or keep a "settlements" subdoc, etc
 
     // We'll just delete the approval request for now!
     await request.deleteOne();
 
-    // You’d ideally now update the Expense/"Settlement" record too (out of scope for this minimal version)
+    // You’d ideally now update the Expense/"Settlement" record too
+    // -- Add a settlement entry
+    const expense = await Expense.findById(request.expense);
+    if (expense) {
+      expense.settlements = expense.settlements || [];
+      expense.settlements.push({
+        from: request.sender,
+        to: userId,
+        amount: request?.meta?.amount ?? 0,
+        approved: true,
+        createdAt: new Date()
+      });
+      await expense.save();
+    }
+
     return res.json({ success: true, message: "Settle completed/approved" });
   } else {
     request.rejected = true;

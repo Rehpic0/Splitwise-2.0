@@ -5,7 +5,6 @@ import Group, { IGroup } from "../models/Group";
 import Expense from "../models/Expense";
 
 dotenv.config();
-console.log('✅', process.env.MONGO_URI);
 mongoose.connect(process.env.MONGO_URI!);
 
 async function seed() {

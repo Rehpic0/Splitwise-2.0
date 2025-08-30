@@ -16,9 +16,10 @@ function GroupPage() {
   const [loading, setLoading] = useState(true);
   const nav = useNavigate();
   const { user } = useAuth();
-
+  const [tab, setTab] = useState<"transactions" | "settlements">("transactions");
   // Expenses & aggregation
   const [expenses, setExpenses] = useState<any[]>([]);
+
   const [agg, setAgg] = useState<any>(null);
 
   // NEW: Add Expense form state
@@ -387,46 +388,117 @@ function GroupPage() {
         </form>
       )}
 
-      {/* Transaction list */}
-      <h4 style={{ margin: "16px 0 5px 0" }}>Transactions:</h4>
-      {expenses.length === 0
-        ? <p>No expenses yet.</p>
-        : (
-          <ul>
-            {expenses.map(exp =>
-              <li key={exp._id} style={{ marginBottom: 8, padding: 8, border: "1px solid #eee" }}>
-                <div>
-                  <b>{exp.description}</b> - <span>${exp.amount.toFixed(2)}</span>
-                  <span style={{ color: exp.approved ? "green" : exp.rejected ? "red" : "orange", marginLeft: 8 }}>
-                    {exp.approved ? "✔️ approved" : exp.rejected ? "❌ rejected" : "⏳ pending"}
-                  </span>
-                </div>
-                <div style={{ fontSize: 14, color: "#555" }}>
-                  Payer: <b>{group.members.find(u => u._id === exp.payer)?.name || "??"}</b>
-                  <span>,
-                    Involved:&nbsp;
-                    {exp.involved.map((id: string) =>
-                      group.members.find(u => u._id === id)?.name || "??"
-                    ).join(", ")}
-                  </span>
-                  <span>
-                    &nbsp;({new Date(exp.createdAt).toLocaleString()})
-                  </span>
-                </div>
-                <div style={{ fontSize: 14, color: "#666" }}>
-                  Split:&nbsp;
-                  {Object.entries(exp.split).map(
-                    ([uid, amt]) =>
-                      <span key={uid}>
-                        {group.members.find(x => x._id === uid)?.name}: ${amt};{" "}
+      <div style={{ margin: "16px 0" }}>
+        <button
+          onClick={() => setTab("transactions")}
+          style={{
+            fontWeight: tab === "transactions" ? 700 : 400,
+            background: tab === "transactions" ? "#eef" : "#fff",
+            border: "1px solid #99c"
+          }}
+        >
+          Transactions
+        </button>
+        <button
+          onClick={() => setTab("settlements")}
+          style={{
+            fontWeight: tab === "settlements" ? 700 : 400,
+            marginLeft: 12,
+            background: tab === "settlements" ? "#eef" : "#fff",
+            border: "1px solid #99c"
+          }}
+        >
+          Settlements
+        </button>
+      </div>
+
+      {tab === "transactions" ? (
+        <>
+          <h4 style={{ margin: "16px 0 5px 0" }}>Transactions:</h4>
+          {expenses.length === 0
+            ? <p>No expenses yet.</p>
+            : (
+              <ul>
+                {expenses.map(exp =>
+                  <li key={exp._id} style={{ marginBottom: 8, padding: 8, border: "1px solid #eee" }}>
+                    <div>
+                      <b>{exp.description}</b> - <span>${exp.amount.toFixed(2)}</span>
+                      <span style={{ color: exp.approved ? "green" : "orange", marginLeft: 8 }}>
+                        {exp.approved ? "✔️ approved" : "⏳ pending"}
                       </span>
-                  )}
-                </div>
-              </li>
-            )}
-          </ul>
-        )
-      }
+                    </div>
+                    <div style={{ fontSize: 14, color: "#555" }}>
+                      Payer: <b>{group.members.find(u => u._id === exp.payer)?.name || "??"}</b>
+                      <span>, Involved:&nbsp;
+                        {exp.involved.map((id: string) =>
+                          group.members.find(u => u._id === id)?.name || "??"
+                        ).join(", ")}
+                      </span>
+                      <span>
+                        &nbsp;({new Date(exp.createdAt).toLocaleString()})
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 14, color: "#666" }}>
+                      Split:&nbsp;
+                      {Object.entries(exp.split).map(
+                        ([uid, amt]) =>
+                          <span key={uid}>
+                            {group.members.find(x => x._id === uid)?.name}: ${amt};{" "}
+                          </span>
+                      )}
+                    </div>
+                  </li>
+                )}
+              </ul>
+            )
+          }
+        </>
+      ) : (
+        <>
+          <h4 style={{ margin: "16px 0 5px 0" }}>Settlements:</h4>
+          {expenses
+            .flatMap(expense => (expense.settlements || []).map((settle: any) => ({
+              ...settle,
+              expenseDesc: expense.description,
+              expenseId: expense._id
+            }))).length === 0
+            ? <p>No settlements yet.</p>
+            : (
+              <ul>
+                {expenses
+                  .flatMap(expense => (expense.settlements || []).map((settle: any) => ({
+                    ...settle,
+                    expenseDesc: expense.description,
+                    expenseId: expense._id
+                  })))
+                  .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((settle: any, idx: number) => {
+                    const fromUser = group.members.find(m => m._id === (settle.from?._id || settle.from));
+                    const toUser = group.members.find(m => m._id === (settle.to?._id || settle.to));
+                    let status = "⏳ pending", color = "#fa0";
+                    if (settle.approved === true) { status = "✔️ approved"; color = "green"; }
+                    if (settle.approved === false && settle.rejected) { status = "❌ rejected"; color = "red"; }
+                    // Optional: add 'rejected' boolean if/when you handle rejected.
+                    return (
+                      <li key={idx} style={{ marginBottom: 8, padding: 8, border: "1px solid #eee" }}>
+                        <div>
+                          <b>{fromUser?.name || "??"}</b> → <b>{toUser?.name || "??"}</b>
+                          &nbsp;
+                          <span>${settle.amount.toFixed(2)}</span>
+                          <span style={{ color, marginLeft: 8 }}>{status}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: "#555" }}>
+                          For: <em>{settle.expenseDesc}</em>
+                          &nbsp;({new Date(settle.createdAt).toLocaleString()})
+                        </div>
+                      </li>
+                    );
+                  })}
+              </ul>
+            )
+          }
+        </>
+      )}
 
 
     </div>

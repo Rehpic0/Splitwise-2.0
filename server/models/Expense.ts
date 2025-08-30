@@ -1,12 +1,13 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
-/**
- * Example:
- * - groupExpense: group: _id
- * - direct: group: null
- * - payer: A
- * - involved: [A, B], split: { A: 30, B: 70 }
- */
+export interface ISettlement {
+  from: Types.ObjectId;
+  to: Types.ObjectId;
+  amount: number;
+  approved: boolean;
+  createdAt: Date;
+}
+
 export interface IExpense extends Document {
   group: Types.ObjectId | null;
   description: string;
@@ -16,6 +17,8 @@ export interface IExpense extends Document {
   split: Record<string, number>;   // { userId: amountOwed }
   createdAt: Date;
   approved: boolean;
+  rejected: boolean;
+  settlements: ISettlement[];
 }
 
 const ExpenseSchema: Schema = new Schema({
@@ -26,7 +29,17 @@ const ExpenseSchema: Schema = new Schema({
   involved: [{ type: Schema.Types.ObjectId, ref: "User" }],
   split: { type: Object, required: true }, // e.g. { "USERID1": 50, "USERID2": 50 }
   createdAt: { type: Date, default: Date.now },
-  approved: { type: Boolean, default: false } // Only true once ALL approve (DAS)
+  approved: { type: Boolean, default: false },
+  rejected: { type: Boolean, default: false },
+  settlements: [
+    {
+      from: { type: Schema.Types.ObjectId, ref: "User" },
+      to: { type: Schema.Types.ObjectId, ref: "User" },
+      amount: { type: Number },
+      approved: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ]
 });
 
 export default mongoose.model<IExpense>("Expense", ExpenseSchema);

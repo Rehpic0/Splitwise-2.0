@@ -5,7 +5,9 @@ import cors from "cors";
 
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/user";
+import groupRouter from "./routes/group";
 import expenseRoutes from "./routes/expense";
+import aggregationRoutes from "./routes/aggregation";
 
 dotenv.config();
 
@@ -19,7 +21,6 @@ const MONGO_URI = process.env.MONGO_URI!;
 
 mongoose.connect(MONGO_URI)
   .then(() => {
-    console.log("MongoDB connected");
     app.listen(PORT, () => console.log(`Server running on ${PORT}`));
   })
   .catch((err) => console.error("MongoDB error:", err));
@@ -28,4 +29,6 @@ mongoose.connect(MONGO_URI)
 app.get("/healthz", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/groups", groupRouter);
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/aggregation", aggregationRoutes);

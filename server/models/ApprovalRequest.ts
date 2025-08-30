@@ -13,7 +13,9 @@ export interface IApprovalRequest extends Document {
   approvedBy: Types.ObjectId[];             // Who has approved
   rejected: boolean;
   createdAt: Date;
-  meta?: object;                            // Any extra e.g. { amountPaid }
+  meta?: {
+    amount?: number;                // For EXPENSE
+  };                            // Any extra e.g. { amountPaid }
 }
 
 const ApprovalRequestSchema: Schema = new Schema({
@@ -24,7 +26,7 @@ const ApprovalRequestSchema: Schema = new Schema({
   approvedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
   rejected: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
-  meta: { type: Object }
+  meta: { type: Schema.Types.Mixed }
 });
 
 export default mongoose.model<IApprovalRequest>("ApprovalRequest", ApprovalRequestSchema);
