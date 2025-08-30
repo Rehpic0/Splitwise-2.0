@@ -32,6 +32,13 @@ function GroupPage() {
 
   const [payer, setPayer] = useState(user ? user._id : "");
   const [splitValidation, setSplitValidation] = useState<string | null>(null);
+
+  const [showSettle, setShowSettle] = useState(false);
+  const [settleToUser, setSettleToUser] = useState<string | null>(null);
+  const [settleAmount, setSettleAmount] = useState<number>(0);
+  const [settling, setSettling] = useState(false);
+  const [settleMsg, setSettleMsg] = useState<string | null>(null);
+
   function resetForm() {
     setDesc("");
     setAmt(0);
@@ -92,18 +99,21 @@ function GroupPage() {
     if (!payer) return;
     setLoadingAdd(true);
     let split: Record<string, number> = {};
+    split[user!._id] = 0;
     if (splitType === "equal" && selected.length > 0) {
       const per = amt / selected.length;
       selected.forEach(uid => split[uid] = Number(per.toFixed(2)));
     } else {
-      split = { ...customSplit };
+      split = { ...split, ...customSplit };
     }
+    console.log('✅', JSON.stringify(split, null, 2));
+
     await axios.post("/expenses", {
       group: id,
       description: desc,
       amount: amt,
       payer,
-      involved: selected,
+      involved: Array.from(new Set([...selected, user._id])),
       split
     });
     setLoadingAdd(false); setShowForm(false); resetForm();
@@ -116,7 +126,6 @@ function GroupPage() {
   const [inviteError, setInviteError] = useState<null | string>(null);
   const [inviting, setInviting] = useState(false);
 
-  console.log(JSON.stringify(expenses, null, 2))
   if (loading) return <div style={{ margin: 30 }}>Loading group...</div>;
   if (!group) return <div style={{ margin: 30 }}>Group not found or error.</div>;
 
@@ -192,6 +201,90 @@ function GroupPage() {
             </ul>
           )}
         </div>
+      )}
+
+
+      {agg && (
+        <div style={{ margin: "8px 0 0 0" }}>
+          {agg.debts
+            .filter((d: any) => d.from === user._id && d.amount > 0)
+            .map((debt: any) => {
+              const toUser = group.members.find(m => m._id === debt.to);
+              return (
+                <div key={debt.to} style={{ marginTop: 8 }}>
+                  You owe <b>${debt.amount.toFixed(2)}</b> to <b>{toUser?.name || debt.to}</b>
+                  <button
+                    style={{ marginLeft: 9 }}
+                    onClick={() => {
+                      setSettleToUser(debt.to);
+                      setSettleAmount(debt.amount);
+                      setShowSettle(true);
+                    }}
+                  >
+                    Settle up
+                  </button>
+                </div>
+              );
+            })}
+        </div>
+      )}
+
+      {showSettle && (
+        <form
+          style={{ marginTop: 10, background: "#eefff2", padding: 10, borderRadius: 6 }}
+          onSubmit={async e => {
+            e.preventDefault();
+            setSettling(true);
+            setSettleMsg(null);
+            try {
+              // Find any one owed expense, or just create settle request for amount+to
+              // (Backend does not care which expense for now)
+              // For demo, we'll just pick the oldest expense that's not yet settled & involves the payer and payee
+              const exp = expenses.find(
+                exp =>
+                  exp.involved.includes(user._id) &&
+                  exp.involved.includes(settleToUser) &&
+                  exp.approved
+              );
+              if (!exp) {
+                setSettleMsg("No eligible expense found between you and this user.");
+                setSettling(false);
+                return;
+              }
+              await axios.post(`/expenses/${exp._id}/settle`, {
+                amount: settleAmount,
+                receiver: settleToUser
+              });
+              setSettleMsg("Settle request sent! Wait for other party to approve.");
+              setShowSettle(false);
+            } catch (err: any) {
+              setSettleMsg(err?.response?.data?.error || "Error sending settle request.");
+            } finally {
+              setSettling(false);
+            }
+          }}
+        >
+          <div>
+            Settle amount: $
+            <input
+              value={settleAmount}
+              type="number"
+              step="0.01"
+              min={0}
+              max={settleAmount}
+              onChange={e => setSettleAmount(Number(e.target.value))}
+              required
+              style={{ width: 60 }}
+            />
+            <span> to </span>
+            <b>{group.members.find(m => m._id === settleToUser)?.name || ""}</b>
+          </div>
+          <button type="submit" disabled={settling}>Send Settle Request</button>
+          <button type="button" onClick={() => setShowSettle(false)} style={{ marginLeft: 6 }}>
+            Cancel
+          </button>
+          {settleMsg && <div style={{ color: "green", marginTop: 5 }}>{settleMsg}</div>}
+        </form>
       )}
 
       {/* ADD EXPENSE BUTTON/FORM */}

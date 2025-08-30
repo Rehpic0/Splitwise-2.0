@@ -53,7 +53,6 @@ function Home() {
     nav("/login");
   }
 
-  console.log(JSON.stringify(pending, null, 2));
 
   return (
     <div style={{ maxWidth: 520, margin: "30px auto", padding: 24, border: "1px solid #eee" }}>
