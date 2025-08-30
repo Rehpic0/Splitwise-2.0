@@ -31,7 +31,7 @@ function GroupPage() {
   const [loadingAdd, setLoadingAdd] = useState(false);
 
   const [payer, setPayer] = useState(user ? user._id : "");
-const [splitValidation, setSplitValidation] = useState<string | null>(null);
+  const [splitValidation, setSplitValidation] = useState<string | null>(null);
   function resetForm() {
     setDesc("");
     setAmt(0);
@@ -55,19 +55,25 @@ const [splitValidation, setSplitValidation] = useState<string | null>(null);
     }
     fetchGroup();
   }, [id, nav]);
-useEffect(() => {
-  if (splitType === "custom") {
-    const sum = selected.reduce((acc, uid) => acc + (customSplit[uid] || 0), 0);
-    // Allow up to 1 cent rounding error
-    if (Math.abs(sum - amt) > 0.01) {
-      setSplitValidation(`Custom split must total $${amt.toFixed(2)}, but it's $${sum.toFixed(2)}.`);
+  useEffect(() => {
+    if (splitType === "custom") {
+      const sum = selected.reduce((acc, uid) => acc + (customSplit[uid] || 0), 0);
+      // Allow up to 1 cent rounding error
+      if (Math.abs(sum - amt) > 0.01) {
+        setSplitValidation(`Custom split must total $${amt.toFixed(2)}, but it's $${sum.toFixed(2)}.`);
+      } else {
+        setSplitValidation(null);
+      }
     } else {
       setSplitValidation(null);
     }
-  } else {
-    setSplitValidation(null);
-  }
-}, [customSplit, amt, selected, splitType]);
+  }, [customSplit, amt, selected, splitType]);
+  const reloadExpenses = async () => {
+    const exp = await axios.get("/expenses", { params: { groupId: id } });
+    setExpenses(exp.data.expenses);
+    const summary = await axios.get(`/aggregation/group/${id}`);
+    setAgg(summary.data);
+  };
   useEffect(() => {
     if (!id) return;
     async function fetchData() {
@@ -81,27 +87,28 @@ useEffect(() => {
   }, [id, showForm]); // showForm ensures refetch after add
 
   async function handleAddExpense(e: React.FormEvent) {
-  e.preventDefault();
-  if (splitValidation) return; // Do not submit with split error!
-  if (!payer) return;
-  setLoadingAdd(true);
-  let split: Record<string, number> = {};
-  if (splitType === "equal" && selected.length > 0) {
-    const per = amt / selected.length;
-    selected.forEach(uid => split[uid] = Number(per.toFixed(2)));
-  } else {
-    split = { ...customSplit };
+    e.preventDefault();
+    if (splitValidation) return; // Do not submit with split error!
+    if (!payer) return;
+    setLoadingAdd(true);
+    let split: Record<string, number> = {};
+    if (splitType === "equal" && selected.length > 0) {
+      const per = amt / selected.length;
+      selected.forEach(uid => split[uid] = Number(per.toFixed(2)));
+    } else {
+      split = { ...customSplit };
+    }
+    await axios.post("/expenses", {
+      group: id,
+      description: desc,
+      amount: amt,
+      payer,
+      involved: selected,
+      split
+    });
+    setLoadingAdd(false); setShowForm(false); resetForm();
+    reloadExpenses();
   }
-  await axios.post("/expenses", {
-    group: id,
-    description: desc,
-    amount: amt,
-    payer,
-    involved: selected,
-    split
-  });
-  setLoadingAdd(false); setShowForm(false); resetForm();
-}
 
   // Add to component state
   const [inviteEmail, setInviteEmail] = useState("");
@@ -109,6 +116,7 @@ useEffect(() => {
   const [inviteError, setInviteError] = useState<null | string>(null);
   const [inviting, setInviting] = useState(false);
 
+  console.log(JSON.stringify(expenses, null, 2))
   if (loading) return <div style={{ margin: 30 }}>Loading group...</div>;
   if (!group) return <div style={{ margin: 30 }}>Group not found or error.</div>;
 
@@ -222,7 +230,7 @@ useEffect(() => {
             />
             Custom split
           </label>
-          
+
           <br />
           <div>
             <b>Payer: </b>
@@ -257,32 +265,32 @@ useEffect(() => {
             )}
           </div>
           {splitType === "custom" && (
-  <div>
-    {selected.map(uid =>
-      <div key={uid}>
-        {group.members.find(m => m._id === uid)?.name}: $
-        <input
-          style={{ width: 60 }}
-          type="number"
-          step="0.01"
-          value={customSplit[uid] || ""}
-          onChange={e => {
-            const val = e.target.value;
-            setCustomSplit(cs => ({ ...cs, [uid]: Number(val) }));
-          }}
-          required
-        />
-      </div>
-    )}
-    <div style={{fontSize:"88%", color: splitValidation ? "red":"#222", marginTop:4}}>
-      {splitValidation || ""}
-    </div>
-  </div>
-)}
+            <div>
+              {selected.map(uid =>
+                <div key={uid}>
+                  {group.members.find(m => m._id === uid)?.name}: $
+                  <input
+                    style={{ width: 60 }}
+                    type="number"
+                    step="0.01"
+                    value={customSplit[uid] || ""}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setCustomSplit(cs => ({ ...cs, [uid]: Number(val) }));
+                    }}
+                    required
+                  />
+                </div>
+              )}
+              <div style={{ fontSize: "88%", color: splitValidation ? "red" : "#222", marginTop: 4 }}>
+                {splitValidation || ""}
+              </div>
+            </div>
+          )}
           <br />
-         <button type="submit" disabled={loadingAdd || !!splitValidation || payer===""}>
-  {loadingAdd ? "Adding..." : "Save Expense"}
-</button>
+          <button type="submit" disabled={loadingAdd || !!splitValidation || payer === ""}>
+            {loadingAdd ? "Adding..." : "Save Expense"}
+          </button>
         </form>
       )}
 
@@ -296,8 +304,8 @@ useEffect(() => {
               <li key={exp._id} style={{ marginBottom: 8, padding: 8, border: "1px solid #eee" }}>
                 <div>
                   <b>{exp.description}</b> - <span>${exp.amount.toFixed(2)}</span>
-                  <span style={{ color: exp.approved ? "green" : "orange", marginLeft: 8 }}>
-                    {exp.approved ? "✔️ approved" : "⏳ pending"}
+                  <span style={{ color: exp.approved ? "green" : exp.rejected ? "red" : "orange", marginLeft: 8 }}>
+                    {exp.approved ? "✔️ approved" : exp.rejected ? "❌ rejected" : "⏳ pending"}
                   </span>
                 </div>
                 <div style={{ fontSize: 14, color: "#555" }}>
