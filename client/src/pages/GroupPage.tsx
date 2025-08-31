@@ -2,6 +2,21 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import type { AxiosError } from "axios";
+
+
+type AggregationSummary = {
+  currentUserSummary: {
+    totalOwe: number;
+    totalOwed: number;
+    perUser: Record<string, number>;
+  };
+  debts: Array<{
+    from: string;
+    to: string;
+    amount: number;
+  }>;
+};
 
 type User = { _id: string; name: string; email: string };
 type Group = {
@@ -9,6 +24,29 @@ type Group = {
   name: string;
   members: User[];
 };
+type Expense = {
+  _id: string;
+  description: string;
+  amount: number;
+  payer: string;
+  involved: string[];
+  approved: boolean;
+  split: Record<string, number>;
+  createdAt: string;
+  settlements?: Settlement[];
+};
+
+type Settlement = {
+  from: string;
+  to: string;
+  amount: number;
+  approved: boolean;
+  rejected?: boolean;
+  createdAt: string;
+  expenseDesc: string;
+  expenseId: string;
+};
+
 
 function GroupPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,9 +56,11 @@ function GroupPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<"transactions" | "settlements">("transactions");
   // Expenses & aggregation
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  const [agg, setAgg] = useState<any>(null);
+
+  const [agg, setAgg] = useState<AggregationSummary | null>(null);
+
 
   // NEW: Add Expense form state
   const [showForm, setShowForm] = useState(false);
@@ -114,7 +154,7 @@ function GroupPage() {
       description: desc,
       amount: amt,
       payer,
-      involved: Array.from(new Set([...selected, user._id])),
+      involved: Array.from(new Set([...selected, user?._id])),
       split
     });
     setLoadingAdd(false); setShowForm(false); resetForm();
@@ -159,8 +199,15 @@ function GroupPage() {
               // Refresh group info so new member appears in the member list
               const g = await axios.get(`/groups/${group._id}`);
               setGroup(g.data.group);
-            } catch (err: any) {
-              setInviteError(err?.response?.data?.error || "Error");
+            } catch (err) {
+              // Define the expected error response structure
+              interface ErrorResponse {
+                error: string;
+              }
+            
+              // Type the error properly using AxiosError and the expected response structure
+              const axiosError = err as AxiosError<ErrorResponse>;
+              setInviteError(axiosError?.response?.data?.error || "Unknown error occurred");
             } finally {
               setInviting(false);
             }
@@ -180,35 +227,35 @@ function GroupPage() {
       </div>
       {/* Aggregate info (DAGN): */}
       {agg && (
-        <div style={{ background: "#ffe", padding: 12, margin: "16px 0", border: "1px solid #ddc" }}>
-          <b>Your balances in this group:</b><br />
-          <span style={{ color: "#444" }}>
-            {agg.currentUserSummary.totalOwe > 0 && (
-              <>You owe <b>${agg.currentUserSummary.totalOwe.toFixed(2)}</b> in total.&nbsp;</>
-            )}
-            {agg.currentUserSummary.totalOwed > 0 && (
-              <>You are owed <b>${agg.currentUserSummary.totalOwed.toFixed(2)}</b> in total.&nbsp;</>
-            )}
-          </span>
-          {Object.keys(agg.currentUserSummary.perUser).length > 0 && (
-            <ul style={{ margin: "8px 0" }}>
-              {Object.entries(agg.currentUserSummary.perUser).map(([userId, amount]) =>
-                <li key={userId}>
-                  {group.members.find(m => m._id === userId)?.name || "(unknown)"}:{" "}
-                  {amount > 0 && <span>You owe <b>${amount.toFixed(2)}</b></span>}
-                  {amount < 0 && <span>Owes you <b>${(-amount).toFixed(2)}</b></span>}
-                </li>
-              )}
-            </ul>
-          )}
-        </div>
+  <div style={{ background: "#ffe", padding: 12, margin: "16px 0", border: "1px solid #ddc" }}>
+    <b>Your balances in this group:</b><br />
+    <span style={{ color: "#444" }}>
+      {agg.currentUserSummary.totalOwe > 0 && (
+        <>You owe <b>${agg.currentUserSummary.totalOwe.toFixed(2)}</b> in total.&nbsp;</>
       )}
+      {agg.currentUserSummary.totalOwed > 0 && (
+        <>You are owed <b>${agg.currentUserSummary.totalOwed.toFixed(2)}</b> in total.&nbsp;</>
+      )}
+    </span>
+    {Object.keys(agg.currentUserSummary.perUser).length > 0 && (
+      <ul style={{ margin: "8px 0" }}>
+        {Object.entries(agg.currentUserSummary.perUser).map(([userId, amount]) =>
+          <li key={userId}>
+            {group.members.find(m => m._id === userId)?.name || "(unknown)"}:{" "}
+            {amount > 0 && <span>You owe <b>${amount.toFixed(2)}</b></span>}
+            {amount < 0 && <span>Owes you <b>${(-amount).toFixed(2)}</b></span>}
+          </li>
+        )}
+      </ul>
+    )}
+  </div>
+)}
 
 
       {agg && (
         <div style={{ margin: "8px 0 0 0" }}>
           {agg.debts
-            .filter((d: any) => d.from === user._id && d.amount > 0)
+            .filter((d: any) => d.from === user?._id && d.amount > 0)
             .map((debt: any) => {
               const toUser = group.members.find(m => m._id === debt.to);
               return (
@@ -243,8 +290,8 @@ function GroupPage() {
               // For demo, we'll just pick the oldest expense that's not yet settled & involves the payer and payee
               const exp = expenses.find(
                 exp =>
-                  exp.involved.includes(user._id) &&
-                  exp.involved.includes(settleToUser) &&
+                  exp.involved.includes(user!._id!) &&
+                  exp.involved.includes(settleToUser!) &&
                   exp.approved
               );
               if (!exp) {
