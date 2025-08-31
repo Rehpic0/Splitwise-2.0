@@ -25,7 +25,9 @@ function Home() {
       setLoadingPending(true);
       try {
         const res = await axios.get("/expenses/pending");
-        setPending(res.data.requests.filter(req => !req.approvedBy.includes(user?._id)));
+        // Explicitly define the type of 'req'
+setPending(res.data.requests.filter((req: { approvedBy: string[] }) => !req.approvedBy.includes(user!._id!)));
+
       } catch (e) { }
       setLoadingPending(false);
     }

@@ -1,9 +1,8 @@
 import axios from "axios";
-import { useAuth } from "../context/AuthContext";
 
 // Base API instance
 const instance = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
 // Attach token to every request
