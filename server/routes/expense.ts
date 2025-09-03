@@ -4,6 +4,7 @@ import Group from "../models/Group";
 import ApprovalRequest from "../models/ApprovalRequest";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import mongoose from "mongoose";
+import User from "../models/User";
 
 const router = express.Router();
 
@@ -40,7 +41,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
    * Only the involved[] need to approve (except creator/payer).
    */
   const { group, description, amount, payer, involved, split } = req.body;
-  console.log('✅', JSON.stringify({ payer, amount, split }, null, 2));
   if (!involved.includes(payer))
     return res.status(400).json({ error: "Payer must be in involved" });
 
@@ -111,15 +111,34 @@ router.post("/approve/:requestId", requireAuth, async (req: AuthRequest, res) =>
     return res.json({ success: true, message: "Rejected expense" });
   }
 });
-
 // Get all pending approvals for this user
 router.get("/pending", requireAuth, async (req: AuthRequest, res) => {
-  const requests = await ApprovalRequest.find({
-    receivers: req.userId,
-    rejected: false,
-  }).populate("expense");
-  res.json({ requests });
+  try {
+    const requests = await ApprovalRequest.find({
+      receivers: req.userId,
+      rejected: false,
+    }).populate("expense");
+
+    const populatedRequests = [];
+
+    for (const request of requests) {
+      const senderUser = await User.findById(request.sender);
+      const senderName = senderUser?.name || "Unknown";
+
+      populatedRequests.push({
+        ...request.toObject(),
+        senderName,
+      });
+    }
+
+    res.json({ requests: populatedRequests });
+  } catch (error) {
+    console.error("Error in /pending route:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
+
+
 
 export default router;
 

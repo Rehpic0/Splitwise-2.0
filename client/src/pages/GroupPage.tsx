@@ -147,7 +147,6 @@ function GroupPage() {
     } else {
       split = { ...split, ...customSplit };
     }
-    console.log('✅', JSON.stringify(split, null, 2));
 
     await axios.post("/expenses", {
       group: id,

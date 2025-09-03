@@ -25,9 +25,7 @@ function Home() {
       setLoadingPending(true);
       try {
         const res = await axios.get("/expenses/pending");
-        // Explicitly define the type of 'req'
-setPending(res.data.requests.filter((req: { approvedBy: string[] }) => !req.approvedBy.includes(user!._id!)));
-
+        setPending(res.data.requests.filter((req: { approvedBy: string[] }) => !req.approvedBy.includes(user!._id!)));
       } catch (e) { }
       setLoadingPending(false);
     }
@@ -70,7 +68,9 @@ setPending(res.data.requests.filter((req: { approvedBy: string[] }) => !req.appr
                 <>
                   <span>
                     Expense <b>{req.expense?.description}</b> (${req.expense?.amount}):
-                    &nbsp;created by <b>{req.sender?.name || ""}</b>.<br />
+                    &nbsp;created by <b>{(() => {
+                      return req.senderName ?? "Unknown User";
+                    })()}</b>.<br />
                     You need to <b>Approve/Reject</b>.
                   </span>
                   <br />
