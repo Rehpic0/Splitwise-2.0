@@ -2,6 +2,17 @@ import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "../api/axios";
 import { useNavigate, Link } from "react-router-dom";
+import {
+  Avatar,
+  Button,
+  TextField,
+  Typography,
+  Container,
+  Box,
+  Paper,
+  Alert,
+} from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 function LoginPage() {
   const [email, setEmail] = useState("");
@@ -22,16 +33,92 @@ function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: "100px auto" }}>
-      <h2>Login</h2>
-      <form onSubmit={onSubmit}>
-        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" type="email" required />
-        <input value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" type="password" required />
-        <button type="submit">Login</button>
-        {error && <div style={{ color: "red" }}>{error}</div>}
-      </form>
-      <p>No account? <Link to="/register">Register here</Link></p>
-    </div>
-  ); 
+    <Box sx={{
+      minHeight: "100vh",
+      bgcolor: "#f4f6f8",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }}>
+      <Container maxWidth="xs">
+        <Paper elevation={4} sx={{ p: 4, borderRadius: 4 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              mb: 1,
+            }}
+          >
+            <Avatar
+              sx={{
+                m: 1,
+                bgcolor: "primary.main",
+                width: 54,
+                height: 54,
+              }}
+            >
+              <LockOutlinedIcon fontSize="large" />
+            </Avatar>
+            <Typography component="h1" variant="h5" sx={{ color: "#229e69", fontWeight: 700 }}>
+              Splitwise 2.0 Login
+            </Typography>
+          </Box>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <Box component="form" onSubmit={onSubmit}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="Email Address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoFocus
+              size="medium"
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              size="medium"
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              sx={{
+                mt: 3,
+                mb: 2,
+                bgcolor: "#229e69",
+                fontWeight: 600,
+                fontSize: "1.125rem",
+                ":hover": { bgcolor: "#1c8658" },
+                borderRadius: 3,
+                textTransform: "none",
+              }}
+            >
+              Login
+            </Button>
+            <Typography sx={{ textAlign: "center", color: "#555" }}>
+              No account? &nbsp;
+              <Link to="/register" style={{ color: "#229e69", textDecoration: "underline" }}>
+                Register here
+              </Link>
+            </Typography>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
+  );
 }
+
 export default LoginPage;
