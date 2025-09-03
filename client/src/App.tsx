@@ -7,7 +7,8 @@ import Home from "./pages/Home";
 import GroupPage from "./pages/GroupPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
   return user ? <>{children}</> : <Navigate to="/login" />;
 }
 

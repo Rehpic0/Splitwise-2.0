@@ -470,7 +470,7 @@ function GroupPage() {
                     <div>
                       <b>{exp.description}</b> - <span>${exp.amount.toFixed(2)}</span>
                       <span style={{ color: exp.approved ? "green" : "orange", marginLeft: 8 }}>
-                        {exp.approved ? "✔️ approved" : "⏳ pending"}
+                        {(exp as any).rejected ? "❌ rejected" : (exp).approved ? "✅ approved" : "⏳ pending"}
                       </span>
                     </div>
                     <div style={{ fontSize: 14, color: "#555" }}>
