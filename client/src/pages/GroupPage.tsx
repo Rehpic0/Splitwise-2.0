@@ -14,8 +14,6 @@ import {
   FormControl,
   InputLabel,
   List,
-  ListItem,
-  ListItemText,
   Chip,
   Tabs,
   Tab,
@@ -332,6 +330,7 @@ export default function GroupPage() {
                 label="Amount"
                 type="number"
                 value={settleAmount}
+                // @ts-ignore
                 step="0.01"
                 min={0}
                 fullWidth
@@ -396,6 +395,7 @@ export default function GroupPage() {
                 type="number"
                 value={amt}
                 required
+                // @ts-ignore
                 step="0.01"
                 margin="normal"
                 onChange={e => setAmt(Number(e.target.value))}
