@@ -23,7 +23,6 @@ import {
   DialogActions,
 } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
-import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import AddIcon from "@mui/icons-material/Add";
 
 type Group = {
@@ -40,7 +39,6 @@ function Home() {
   const [pending, setPending] = useState<any[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
 
-  const [showForm, setShowForm] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -80,7 +78,6 @@ function Home() {
       const res = await axios.post("/groups", { name: groupName, memberIds: [] });
       setGroups([res.data.group, ...groups]);
       setGroupName("");
-      setShowForm(false);
     } catch (err: any) {
       setCreateError(err?.response?.data?.error || "Could not create group");
     }
